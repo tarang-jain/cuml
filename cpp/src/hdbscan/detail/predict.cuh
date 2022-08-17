@@ -81,6 +81,11 @@ void approximate_predict(const raft::handle_t& handle,
   auto n_edges    = condensed_tree.get_n_edges();
   auto n_leaves   = condensed_tree.get_n_leaves();
 
+  raft::print_device_vector("parents", parents, n_edges, std::cout);
+  raft::print_device_vector("children", children, n_edges, std::cout);
+  raft::print_device_vector("lambdas", lambdas, n_edges, std::cout);
+  raft::print_device_vector("sizes", condensed_tree.get_sizes(), n_edges, std::cout);
+raft::print_device_vector("selected_clusters", prediction_data.get_selected_clusters(), prediction_data.get_n_selected_clusters(), std::cout);
   std::vector<value_t*> inputs;
   inputs.push_back(const_cast<value_t*>(X));
   
@@ -110,10 +115,10 @@ void approximate_predict(const raft::handle_t& handle,
     true,
     metric);
   
-  handle.sync_stream(stream);
-  cudaDeviceSynchronize();
-  raft::print_device_vector("indices", int64_indices.data(), 2 * min_samples, std::cout);
-  raft::print_device_vector("dists", dists.data(), 2 * min_samples, std::cout);
+  // handle.sync_stream(stream);
+  // cudaDeviceSynchronize();
+  // raft::print_device_vector("indices", int64_indices.data(), 2 * min_samples, std::cout);
+  // raft::print_device_vector("dists", dists.data(), 2 * min_samples, std::cout);
 
   auto counting = thrust::make_counting_iterator<value_idx>(0);
 
@@ -132,6 +137,7 @@ void approximate_predict(const raft::handle_t& handle,
   rmm::device_uvector<value_t> min_mr_dists(n_prediction_points, stream);
   rmm::device_uvector<value_idx> min_mr_indices(n_prediction_points, stream);
   
+  // raft::print_device_vector("core_dists", prediction_data.get_core_dists(), n_prediction_points, std::cout);
   int n_blocks = raft::ceildiv((int)n_prediction_points, tpb);
   // get nearest neighbors for each prediction point in mutual reachability space
   min_mutual_reachability_kernel<<<n_blocks, tpb, 0, stream>>>(prediction_data.get_core_dists(),
@@ -143,13 +149,13 @@ void approximate_predict(const raft::handle_t& handle,
                                  min_mr_dists.data(),
                                  min_mr_indices.data());
   
-                                 handle.sync_stream();
-                                 cudaDeviceSynchronize();
-                                 raft::print_device_vector("input_core_dists", prediction_data.get_core_dists(), 20, std::cout);
-                                 raft::print_device_vector("pairwise_dists", dists.data(), 2 * min_samples, std::cout);
-                                 raft::print_device_vector("prediction_core_dists", prediction_core_dists.data(), 20, std::cout);
-  raft::print_device_vector("min_mr_dists", min_mr_dists.data(), 15, std::cout);
-  raft::print_device_vector("min_mr_indices", min_mr_indices.data(), 15, std::cout);
+                                //  handle.sync_stream();
+                                //  cudaDeviceSynchronize();
+                                //  raft::print_device_vector("input_core_dists", prediction_data.get_core_dists(), 20, std::cout);
+                                //  raft::print_device_vector("pairwise_dists", dists.data(), 2 * min_samples, std::cout);
+                                //  raft::print_device_vector("prediction_core_dists", prediction_core_dists.data(), 20, std::cout);
+  // raft::print_device_vector("min_mr_dists", min_mr_dists.data(), 15, std::cout);
+  // raft::print_device_vector("min_mr_indices", min_mr_indices.data(), 15, std::cout);
   rmm::device_uvector<value_t> prediction_lambdas(n_prediction_points, stream);
 
   // obtain lambda values from minimum mutual reachability distances.
@@ -161,7 +167,7 @@ void approximate_predict(const raft::handle_t& handle,
       if (dist > 0) return (1 / dist); 
       return std::numeric_limits<value_t>::max();});
   
-      raft::print_device_vector("prediction_lambdas", prediction_lambdas.data(), 15, std::cout);
+      // raft::print_device_vector("prediction_lambdas", prediction_lambdas.data(), 15, std::cout);
   rmm::device_uvector<value_idx> index_into_children(n_edges + 1, stream);
 
   auto index_op = [index_into_children = index_into_children.data()] __device__(auto t) {
@@ -174,7 +180,7 @@ void approximate_predict(const raft::handle_t& handle,
     thrust::make_zip_iterator(thrust::make_tuple(children + n_edges, counting + n_edges)),
     index_op);
 
-  raft::print_device_vector("labels", labels + 275, 10, std::cout);
+  // raft::print_device_vector("labels", labels + 275, 10, std::cout);
   cluster_probability_kernel<<<n_blocks, tpb, 0, stream>>>(min_mr_indices.data(),
         prediction_lambdas.data(),
         index_into_children.data(),
@@ -187,8 +193,10 @@ void approximate_predict(const raft::handle_t& handle,
         n_prediction_points,
         out_labels,
         out_probabilities);
-  
-        raft::print_device_vector("out_labels", out_labels, n_prediction_points, std::cout);
+        // handle.sync_stream();
+        //                          cudaDeviceSynchronize();
+        // raft::print_device_vector("out_labels", out_labels, n_prediction_points, std::cout);
+        // raft::print_device_vector("out_probs", out_probabilities, n_prediction_points, std::cout);
 }
 
 };  // end namespace Predict

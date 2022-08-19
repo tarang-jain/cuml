@@ -181,6 +181,8 @@ raft::print_device_vector("selected_clusters", prediction_data.get_selected_clus
     index_op);
 
   raft::print_device_vector("labels", labels + 275, 10, std::cout);
+  raft::print_device_vector("selected_clusters", prediction_data.get_selected_clusters(), prediction_data.get_n_selected_clusters(), std::cout);
+  raft::print_device_vector("deaths", prediction_data.get_deaths(), condensed_tree.get_n_clusters(), std::cout);
   cluster_probability_kernel<<<n_blocks, tpb, 0, stream>>>(min_mr_indices.data(),
         prediction_lambdas.data(),
         index_into_children.data(),

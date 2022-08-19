@@ -149,13 +149,13 @@ raft::print_device_vector("selected_clusters", prediction_data.get_selected_clus
                                  min_mr_dists.data(),
                                  min_mr_indices.data());
   
-                                //  handle.sync_stream();
-                                //  cudaDeviceSynchronize();
-                                //  raft::print_device_vector("input_core_dists", prediction_data.get_core_dists(), 20, std::cout);
-                                //  raft::print_device_vector("pairwise_dists", dists.data(), 2 * min_samples, std::cout);
-                                //  raft::print_device_vector("prediction_core_dists", prediction_core_dists.data(), 20, std::cout);
-  // raft::print_device_vector("min_mr_dists", min_mr_dists.data(), 15, std::cout);
-  // raft::print_device_vector("min_mr_indices", min_mr_indices.data(), 15, std::cout);
+                                 handle.sync_stream();
+                                 cudaDeviceSynchronize();
+                                 raft::print_device_vector("input_core_dists", prediction_data.get_core_dists(), 20, std::cout);
+                                 raft::print_device_vector("pairwise_dists", dists.data(), 2 * min_samples, std::cout);
+                                 raft::print_device_vector("prediction_core_dists", prediction_core_dists.data(), 20, std::cout);
+  raft::print_device_vector("min_mr_dists", min_mr_dists.data(), 15, std::cout);
+  raft::print_device_vector("min_mr_indices", min_mr_indices.data(), 15, std::cout);
   rmm::device_uvector<value_t> prediction_lambdas(n_prediction_points, stream);
 
   // obtain lambda values from minimum mutual reachability distances.
@@ -167,7 +167,7 @@ raft::print_device_vector("selected_clusters", prediction_data.get_selected_clus
       if (dist > 0) return (1 / dist); 
       return std::numeric_limits<value_t>::max();});
   
-      // raft::print_device_vector("prediction_lambdas", prediction_lambdas.data(), 15, std::cout);
+      raft::print_device_vector("prediction_lambdas", prediction_lambdas.data(), 15, std::cout);
   rmm::device_uvector<value_idx> index_into_children(n_edges + 1, stream);
 
   auto index_op = [index_into_children = index_into_children.data()] __device__(auto t) {
@@ -180,7 +180,7 @@ raft::print_device_vector("selected_clusters", prediction_data.get_selected_clus
     thrust::make_zip_iterator(thrust::make_tuple(children + n_edges, counting + n_edges)),
     index_op);
 
-  // raft::print_device_vector("labels", labels + 275, 10, std::cout);
+  raft::print_device_vector("labels", labels + 275, 10, std::cout);
   cluster_probability_kernel<<<n_blocks, tpb, 0, stream>>>(min_mr_indices.data(),
         prediction_lambdas.data(),
         index_into_children.data(),
@@ -193,10 +193,10 @@ raft::print_device_vector("selected_clusters", prediction_data.get_selected_clus
         n_prediction_points,
         out_labels,
         out_probabilities);
-        // handle.sync_stream();
-        //                          cudaDeviceSynchronize();
-        // raft::print_device_vector("out_labels", out_labels, n_prediction_points, std::cout);
-        // raft::print_device_vector("out_probs", out_probabilities, n_prediction_points, std::cout);
+        handle.sync_stream();
+                                 cudaDeviceSynchronize();
+        raft::print_device_vector("out_labels", out_labels, n_prediction_points, std::cout);
+        raft::print_device_vector("out_probs", out_probabilities, n_prediction_points, std::cout);
 }
 
 };  // end namespace Predict

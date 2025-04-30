@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, NVIDIA CORPORATION.
+ * Copyright (c) 2021-2025, NVIDIA CORPORATION.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,6 +26,8 @@
 
 #include <raft/cluster/detail/agglomerative.cuh>  // build_dendrogram_host
 #include <raft/cluster/detail/mst.cuh>            // build_sorted_mst
+#include <raft/core/device_coo_matrix.hpp>
+#include <raft/core/device_mdspan.hpp>
 #include <raft/core/handle.hpp>
 #include <raft/core/kvp.hpp>
 #include <raft/core/resource/thrust_policy.hpp>
@@ -40,6 +42,7 @@
 #include <thrust/scatter.h>
 #include <thrust/transform.h>
 
+#include <cuvs/cluster/agglomerative.hpp>
 #include <cuvs/neighbors/reachability.hpp>
 
 namespace ML {
@@ -173,8 +176,8 @@ void build_linkage(const raft::handle_t& handle,
   // Note that (min_samples+1) is parsed while allocating space for the COO matrix and to the
   // mutual_reachability_graph function. This was done to account for self-loops in the knn graph
   // and be consistent with Scikit learn Contrib.
-  raft::sparse::COO<value_t, value_idx> mutual_reachability_coo(stream,
-                                                                (params.min_samples + 1) * m * 2);
+  size_t mutual_reachability_nnz = ((params.min_samples + 1) * m * 2);
+  raft::sparse::COO<value_t, value_idx> mutual_reachability_coo(stream, mutual_reachability_nnz);
 
   cuvs::neighbors::reachability::mutual_reachability_graph(
     handle,
@@ -186,42 +189,29 @@ void build_linkage(const raft::handle_t& handle,
     metric,
     params.alpha);
 
-  /**
-   * Construct MST sorted by weights
-   */
-
-  rmm::device_uvector<value_idx> color(m, stream);
   FixConnectivitiesRedOp<value_idx, value_t> red_op(core_dists, m);
-  // during knn graph connection
-  raft::cluster::detail::build_sorted_mst(handle,
-                                          X,
-                                          mutual_reachability_indptr.data(),
-                                          mutual_reachability_coo.cols(),
-                                          mutual_reachability_coo.vals(),
-                                          m,
-                                          n,
-                                          out.get_mst_src(),
-                                          out.get_mst_dst(),
-                                          out.get_mst_weights(),
-                                          color.data(),
-                                          mutual_reachability_coo.nnz,
-                                          red_op,
-                                          static_cast<raft::distance::DistanceType>(metric),
-                                          (size_t)10);
+  value_idx n_edges = m - 1;
 
-  /**
-   * Perform hierarchical labeling
-   */
-  size_t n_edges = m - 1;
-
-  raft::cluster::detail::build_dendrogram_host(handle,
-                                               out.get_mst_src(),
-                                               out.get_mst_dst(),
-                                               out.get_mst_weights(),
-                                               n_edges,
-                                               out.get_children(),
-                                               out.get_deltas(),
-                                               out.get_sizes());
+  cuvs::cluster::agglomerative::build_linkage(
+    handle,
+    raft::make_device_matrix_view<const value_t, value_idx>(X, m, n),
+    metric,
+    raft::make_device_vector_view<value_idx, value_idx>(mutual_reachability_indptr.data(), m + 1),
+    raft::make_device_coo_matrix_view<value_t, value_idx, value_idx, size_t>(
+      mutual_reachability_coo.vals(),
+      raft::make_device_coordinate_structure_view(mutual_reachability_coo.rows(),
+                                                  mutual_reachability_coo.cols(),
+                                                  value_idx(m),
+                                                  value_idx(m),
+                                                  mutual_reachability_nnz)),
+    raft::make_device_coo_matrix_view<value_t, value_idx, value_idx, value_idx>(
+      out.get_mst_weights(),
+      raft::make_device_coordinate_structure_view(
+        out.get_mst_src(), out.get_mst_dst(), value_idx(m), value_idx(m), n_edges)),
+    raft::make_device_matrix_view<value_idx, value_idx>(out.get_children(), n_edges, 2),
+    raft::make_device_vector_view<value_t, value_idx>(out.get_deltas(), n_edges),
+    raft::make_device_vector_view<value_idx, value_idx>(out.get_sizes(), n_edges),
+    red_op);
 }
 
 template <typename value_idx = int64_t, typename value_t = float>

@@ -24,6 +24,7 @@ import numpy as np
 import pytest
 import treelite
 from cudf.pandas import LOADED as cudf_pandas_active
+from scipy.stats import spearmanr
 from numba import cuda
 from sklearn.datasets import (
     fetch_california_housing,
@@ -332,6 +333,8 @@ def test_rf_classification(small_clf, datatype, max_samples, max_features):
         max_depth=16,
     )
     cuml_model.fit(X_train, y_train)
+    oob_score = cuml_model.oob_score_
+    feature_importances = cuml_model.feature_importances_
 
     preds = cuml_model.predict(X_test)
     acc = accuracy_score(y_test, preds)
@@ -346,7 +349,11 @@ def test_rf_classification(small_clf, datatype, max_samples, max_features):
         sk_model.fit(X_train, y_train)
         sk_preds = sk_model.predict(X_test)
         sk_acc = accuracy_score(y_test, sk_preds)
+        sk_oob_score = sk_model.oob_score_
+        sk_feature_importances = sk_model.feature_importances_
         assert acc >= (sk_acc - 0.07)
+        assert abs(oob_score - sk_oob_score) <= np.inf
+        assert spearmanr(feature_importances, sk_feature_importances)[0] >= 0.5
 
 
 @pytest.mark.parametrize(
@@ -454,6 +461,8 @@ def test_rf_regression(
     )
     cuml_model.fit(X_train, y_train)
     preds = cuml_model.predict(X_test)
+    oob_score = cuml_model.oob_score_
+    feature_importances = cuml_model.feature_importances_
 
     r2 = r2_score(y_test, preds)
     # Initialize, fit and predict using sklearn's random forest regression model
@@ -468,7 +477,11 @@ def test_rf_regression(
         sk_model.fit(X_train, y_train)
         sk_preds = sk_model.predict(X_test)
         sk_r2 = r2_score(y_test, sk_preds)
+        sk_oob_score = sk_model.oob_score_
+        sk_feature_importances = sk_model.feature_importances_
         assert r2 >= (sk_r2 - 0.07)
+        assert abs(oob_score - sk_oob_score) <= np.inf
+        assert spearmanr(feature_importances, sk_feature_importances)[0] >= 0.5
 
 
 @pytest.mark.skipif(

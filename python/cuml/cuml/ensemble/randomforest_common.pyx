@@ -37,6 +37,7 @@ from cuml.internals.utils import check_random_seed
 
 from libc.stdint cimport uint64_t, uintptr_t
 from libcpp cimport bool
+from libcpp.vector cimport vector
 from pylibraft.common.handle cimport handle_t
 
 from cuml.internals.logger cimport level_enum
@@ -82,6 +83,8 @@ cdef extern from "cuml/ensemble/randomforest.hpp" namespace "ML" nogil:
     cdef void fit_treelite[T, L](
         handle_t& handle,
         TreeliteModelHandle* model,
+        double& oob_score,
+        vector[T]& feature_importances,
         T* values,
         int n_rows,
         int n_cols,
@@ -94,6 +97,8 @@ cdef extern from "cuml/ensemble/randomforest.hpp" namespace "ML" nogil:
     cdef void fit_treelite[T, L](
         handle_t& handle,
         TreeliteModelHandle* model,
+        double& oob_score,
+        vector[T]& feature_importances,
         T* values,
         int n_rows,
         int n_cols,
@@ -370,6 +375,8 @@ class BaseRandomForestModel(Base, InteropMixin):
         return state
 
     def __setstate__(self, state):
+        self._oob_score_ = -1.0
+        self._feature_importances_ = None
         self.__dict__.update(state)
 
     def __len__(self):
@@ -490,12 +497,19 @@ class BaseRandomForestModel(Base, InteropMixin):
         cdef uintptr_t _fi_ptr = <uintptr_t> _fi_py.ctypes.data
         cdef handle_t* handle_ = <handle_t*><uintptr_t>self.handle.getHandle()
 
+        cdef double oob_score
+
+        cdef vector[float] fi_float
+        cdef vector[double] fi_double
+
         with nogil:
             if is_classifier:
                 if is_float32:
                     fit_treelite_with_stats(
                         handle_[0],
                         &tl_handle,
+                        oob_score,
+                        fi_float,
                         <float*> X_ptr,
                         n_rows,
                         n_cols,
@@ -510,6 +524,8 @@ class BaseRandomForestModel(Base, InteropMixin):
                     fit_treelite_with_stats(
                         handle_[0],
                         &tl_handle,
+                        oob_score,
+                        fi_double,
                         <double*> X_ptr,
                         n_rows,
                         n_cols,
@@ -525,6 +541,8 @@ class BaseRandomForestModel(Base, InteropMixin):
                     fit_treelite_with_stats(
                         handle_[0],
                         &tl_handle,
+                        oob_score,
+                        fi_float,
                         <float*> X_ptr,
                         n_rows,
                         n_cols,
@@ -538,6 +556,8 @@ class BaseRandomForestModel(Base, InteropMixin):
                     fit_treelite_with_stats(
                         handle_[0],
                         &tl_handle,
+                        oob_score,
+                        fi_double,
                         <double*> X_ptr,
                         n_rows,
                         n_cols,
@@ -547,6 +567,14 @@ class BaseRandomForestModel(Base, InteropMixin):
                         &oob_score_value,
                         <double*> _fi_ptr,
                     )
+        
+        # Extract oob score
+        self._oob_score_ = oob_score
+        # Extract feature importances
+        if is_float32:
+            self._feature_importances_ = [fi_float[i] for i in range(fi_float.size())]
+        else:
+            self._feature_importances_ = [fi_double[i] for i in range(fi_double.size())]
 
         # XXX: Theoretically we could wrap `tl_handle` with `treelite.Model` to
         # manage ownership, and keep the loaded model around. However, this

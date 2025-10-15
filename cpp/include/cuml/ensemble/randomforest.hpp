@@ -22,6 +22,7 @@
 
 #include <map>
 #include <memory>
+#include <vector>
 
 namespace raft {
 class handle_t;  // forward decl
@@ -245,6 +246,8 @@ void fit(const raft::handle_t& user_handle,
 template <typename T, typename L>
 void fit_treelite(const raft::handle_t& user_handle,
                   TreeliteModelHandle* model,
+                  double& oob_score,
+                  std::vector<T>& feature_importances,
                   T* input,
                   int n_rows,
                   int n_cols,
@@ -322,6 +325,8 @@ void fit(const raft::handle_t& user_handle,
 template <typename T, typename L>
 void fit_treelite(const raft::handle_t& user_handle,
                   TreeliteModelHandle* model,
+                  double& oob_score,
+                  std::vector<T>& feature_importances,
                   T* input,
                   int n_rows,
                   int n_cols,

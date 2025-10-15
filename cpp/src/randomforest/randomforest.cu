@@ -403,6 +403,8 @@ void fit(const raft::handle_t& user_handle,
 template <typename value_t, typename label_t>
 void fit_treelite(const raft::handle_t& user_handle,
                   TreeliteModelHandle* model,
+                  double& oob_score,
+                  std::vector<value_t>& feature_importances,
                   value_t* input,
                   int n_rows,
                   int n_cols,
@@ -413,6 +415,8 @@ void fit_treelite(const raft::handle_t& user_handle,
 {
   RandomForestMetaData<value_t, label_t> metadata;
   fit(user_handle, &metadata, input, n_rows, n_cols, labels, n_unique_labels, rf_params, verbosity);
+  oob_score = get_oob_score(&metadata);
+  feature_importances = get_feature_importances(&metadata);
   build_treelite_forest(model, &metadata, n_cols);
 }
 
@@ -611,6 +615,8 @@ void fit(const raft::handle_t& user_handle,
 template <typename value_t, typename label_t>
 void fit_treelite(const raft::handle_t& user_handle,
                   TreeliteModelHandle* model,
+                  double& oob_score,
+                  std::vector<value_t>& feature_importances,
                   value_t* input,
                   int n_rows,
                   int n_cols,
@@ -620,6 +626,8 @@ void fit_treelite(const raft::handle_t& user_handle,
 {
   RandomForestMetaData<value_t, label_t> metadata;
   fit(user_handle, &metadata, input, n_rows, n_cols, labels, rf_params, verbosity);
+  oob_score = get_oob_score(&metadata);
+  feature_importances = get_feature_importances(&metadata);
   build_treelite_forest(model, &metadata, n_cols);
 }
 
@@ -887,6 +895,8 @@ template std::vector<double> get_feature_importances<double, double>(RandomFores
 
 template void fit_treelite<float, int>(const raft::handle_t& user_handle,
                                        TreeliteModelHandle* model,
+                                       double& oob_score,
+                                       vector<float>& feature_importances,
                                        float* input,
                                        int n_rows,
                                        int n_cols,
@@ -896,6 +906,8 @@ template void fit_treelite<float, int>(const raft::handle_t& user_handle,
                                        rapids_logger::level_enum verbosity);
 template void fit_treelite<double, int>(const raft::handle_t& user_handle,
                                         TreeliteModelHandle* model,
+                                        double& oob_score,
+                                        vector<double>& feature_importances,
                                         double* input,
                                         int n_rows,
                                         int n_cols,
@@ -905,6 +917,8 @@ template void fit_treelite<double, int>(const raft::handle_t& user_handle,
                                         rapids_logger::level_enum verbosity);
 template void fit_treelite<float, float>(const raft::handle_t& user_handle,
                                          TreeliteModelHandle* model,
+                                         double& oob_score,
+                                         vector<float>& feature_importances,
                                          float* input,
                                          int n_rows,
                                          int n_cols,
@@ -913,6 +927,8 @@ template void fit_treelite<float, float>(const raft::handle_t& user_handle,
                                          rapids_logger::level_enum verbosity);
 template void fit_treelite<double, double>(const raft::handle_t& user_handle,
                                            TreeliteModelHandle* model,
+                                           double& oob_score,
+                                           vector<double>& feature_importances,
                                            double* input,
                                            int n_rows,
                                            int n_cols,

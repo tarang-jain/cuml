@@ -92,12 +92,6 @@ struct RF_params {
    * N streams need N times RF workspace.
    */
   int n_streams;
-  /**
-   * Enable out-of-bag score computation.
-   * If set to true, OOB score will be computed during training.
-   * Only valid when bootstrap=true.
-   */
-  bool oob_score = false;
   DT::DecisionTreeParams tree_params;
 };
 

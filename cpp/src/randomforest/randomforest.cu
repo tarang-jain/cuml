@@ -817,15 +817,6 @@ static void compute_feature_importances(RandomForestMetaData<T, L>* forest)
 }
 
 /**
- * @brief Get the out-of-bag score of the trained RandomForest model.
- */
-template <class T, class L>
-double get_oob_score(const RandomForestMetaData<T, L>* forest)
-{
-  return forest->oob_score;
-}
-
-/**
  * @brief Get the feature importances of the trained RandomForest model (lazy computation).
  */
 template <class T, class L>
@@ -868,10 +859,6 @@ template void build_treelite_forest<double, double>(
   TreeliteModelHandle* model, const RandomForestMetaData<double, double>* forest, int num_features);
 
 // Template instantiations for get functions
-template double get_oob_score<float, int>(const RandomForestMetaData<float, int>* forest);
-template double get_oob_score<double, int>(const RandomForestMetaData<double, int>* forest);
-template double get_oob_score<float, float>(const RandomForestMetaData<float, float>* forest);
-template double get_oob_score<double, double>(const RandomForestMetaData<double, double>* forest);
 
 template std::vector<float> get_feature_importances<float, int>(
   RandomForestMetaData<float, int>* forest);

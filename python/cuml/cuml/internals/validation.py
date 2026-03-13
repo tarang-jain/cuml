@@ -106,7 +106,7 @@ def _get_n_features(X):
         else:
             warnings.warn(
                 "Support for passing non-2-dimensional X was deprecated in 26.04 "
-                "and will be removed in 26.06. In cuml 26.06 this will error "
+                "and will be removed in version 26.06 of cuML. In version 26.06 this will error "
                 f"with the following message:\n\n{msg}",
                 FutureWarning,
             )

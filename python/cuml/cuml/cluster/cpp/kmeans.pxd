@@ -29,8 +29,7 @@ cdef extern from "cuml/cluster/kmeans_params.hpp" namespace "ML::kmeans" nogil:
         int n_init,
         double oversampling_factor,
         int batch_samples,
-        int batch_centroids,
-        bool inertia_check
+        int batch_centroids
 
 
 cdef extern from "cuml/cluster/kmeans.hpp" namespace "ML::kmeans" nogil:
